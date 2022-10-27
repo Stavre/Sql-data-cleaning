@@ -1,0 +1,479 @@
+DATA CLEANING
+
+13:08 12.04.2022 I uploaded the csv into Oracle Apex. I will use SQL queries to clean, format and structure the data.
+
+13:11 12.04.2022 The following query showed that some movies are recorded multiple times
+SELECT "MOVIE_TITLE", COUNT("MOVIE_TITLE")
+FROM DATA
+GROUP BY "MOVIE_TITLE"
+HAVING COUNT("MOVIE_TITLE") > 1
+
+13:13 12.04.2022 The following query returned the number of movies that are recorded more than once (120 movies)
+SELECT COUNT("MOVIE_TITLE")
+FROM(
+SELECT "MOVIE_TITLE", COUNT("MOVIE_TITLE") AS APPEARANCES
+FROM DATA
+GROUP BY "MOVIE_TITLE"
+HAVING COUNT("MOVIE_TITLE") > 1)
+
+13:21 12.04.2022 The following columns where deemed to be unnecesary
+COLOR LANGUAGE COUNTRY ASPECT_RATIO IMDB_SCORE NUM_CRITIC_FOR_REVIEWS DIRECTOR_FACEBOOK_LIKES ACTOR_3_FACEBOOK_LIKES ACTOR_1_FACEBOOK_LIKES NUM_VOTED_USERS CAST_TOTAL_FACEBOOK_LIKES FACENUMBER_IN_POSTER NUM_USER_FOR_REVIEWS ACTOR_2_FACEBOOK_LIKES
+As such, they were removed
+alter table data drop ("COLOR", "LANGUAGE", "COUNTRY", "ASPECT_RATIO", "IMDB_SCORE", "NUM_CRITIC_FOR_REVIEWS", "DIRECTOR_FACEBOOK_LIKES", "ACTOR_3_FACEBOOK_LIKES", "ACTOR_1_FACEBOOK_LIKES", "NUM_VOTED_USERS", "CAST_TOTAL_FACEBOOK_LIKES", "FACENUMBER_IN_POSTER", "NUM_USER_FOR_REVIEWS", "ACTOR_2_FACEBOOK_LIKES");
+
+13:35 12.04.2022 The following script reveals 492 movies without budget
+SELECT COUNT(ID) FROM (Select *  FROM DATA
+where "BUDGET" IS NULL)
+
+13:37 12.04.2022 Those rows where deleted
+DELETE 
+FROM DATA
+WHERE "BUDGET" IS NULL
+
+13:39 12.04.2022 660 movies do not have gross revenue
+SELECT COUNT(ID) FROM (SELECT * 
+FROM DATA
+WHERE "GROSS" IS NULL)
+
+13:42 12.04.2022 Those rows were deleted
+DELETE FROM DATA
+WHERE "GROSS" IS NULL
+
+13:45 12.04.2022 After the previous queries, the number of duplicate movies dropped to 96.
+SELECT COUNT("MOVIE_TITLE")
+FROM(
+SELECT "MOVIE_TITLE", COUNT("MOVIE_TITLE") AS APPEARANCES
+FROM DATA
+GROUP BY "MOVIE_TITLE"
+HAVING COUNT("MOVIE_TITLE") > 1)
+
+13:47 12.04.2022 No movies where found with budget or gross revenue less tha or equal to 0
+SELECT COUNT(ID)
+FROM(   SELECT *
+        FROM DATA
+        WHERE "BUDGET" <= 0 OR "GROSS" <= 0)
+
+13:54 12.04.2022 Trimming columns
+UPDATE DATA
+SET
+    director_name = TRIM(director_name),
+    actor_1_name = TRIM(actor_1_name),
+    actor_2_name = TRIM(actor_2_name),
+    actor_3_name = TRIM(actor_3_name),
+    genres = TRIM(genres),
+    movie_title = TRIM(movie_title),
+    plot_keywords = TRIM(plot_keywords),
+    content_rating = TRIM(content_rating);
+
+13:55 12.04.2022 The number of duplicate movies is unchanged
+
+14:20 12.04.2022 Some values where converted to uppercase
+UPDATE DATA
+SET
+    director_name = UPPER(director_name),
+    actor_1_name = UPPER(actor_1_name),
+    actor_2_name = UPPER(actor_2_name),
+    actor_3_name = UPPER(actor_3_name),
+    genres = UPPER(genres),
+    movie_title = UPPER(movie_title),
+    plot_keywords = UPPER(plot_keywords),
+    content_rating = UPPER(content_rating);
+
+14:22 12.04.2022 The number of duplicate movies is unchanged
+
+15:02 12.04.2022 CHECKING FOR STRANGE CHARACTERS IN DIRECTOR'S NAME. NOTHING FOUND SO FAR
+SELECT * FROM DATA
+WHERE LENGTH(REPLACE(TRANSLATE("DIRECTOR_NAME", '0123456789|\/?,";:[]{+=_()*&^%$#@!}<>', ' '), ' ')) < LENGTH(REPLACE("DIRECTOR_NAME", ' '))
+
+15:08 12.04.2022 Checking for strange characters in first actor's name
+SELECT * FROM DATA
+WHERE LENGTH(REPLACE(TRANSLATE("ACTOR_1_NAME", '0123456789|\/?,";:[]{+=_()*&^%$#@!}<>', ' '), ' ')) < LENGTH(REPLACE("ACTOR_1_NAME", ' '))
+
+Found one recording
+
+ID	DIRECTOR_NAME	DURATION	ACTOR_2_NAME	GROSS	                  GENRES	      ACTOR_1_NAME	MOVIE_TITLE	            ACTOR_3_NAME	                            PLOT_KEYWORDS	                                 MOVIE_IMDB_LINK	          CONTENT_RATING	BUDGET	     TITLE_YEAR	MOVIE_FACEBOOK_LIKES
+1272	JIM SHERIDAN	117	          BILL DUKE	30981850	BIOGRAPHY|CRIME|DRAMA|MUSIC	50 CENT	   GET RICH OR DIE TRYIN' 	MARC JOHN JEFFERIES	MALE FRONTAL NUDITY|MALE PUBIC HAIR|PRISON|PUBIC HAIR|VIOLENCE	http://www.imdb.com/title/tt0430308/?ref_=fn_tt_tt_1	R	        40000000	2005	0
+
+No actions will be taken.
+
+15:12 12.04.2022 Checking for strange characters in second and third actor's names. A few recording were found, all containing 50 Cent.
+
+No actions will be taken.
+
+15:44 12.04.2022 Column MOVIE_IMDB_LINK was removed.
+ALTER TABLE DATA DROP COLUMN MOVIE_IMDB_LINK;
+
+15:48 12.04.2022 All movies published before 1980 were deleted. The first blockbuster (Jaws, directed by Spielberg) was released in 1975.
+In 1982 more blockbusters appeared (ET the Extraterrestrial, The Thing, Rocky III, Star Trek II the Wrath of Khan, Conan the Barbarian, Blade Runner, 
+Poltergeist, Tron, and The Road Warrior). 1982 is considered the latest date that can be given for the start of the Blockbuster Age. I randomly chose 1980 (a year between 1975 and 1982)
+This matter, as well as others, would require a subject matter expert, but I will have to make do without one.
+DELETE FROM DATA
+WHERE "TITLE_YEAR" < 1980
+
+
+16:07 12.04.2022 The number of duplicate movies droped to 94.
+
+16:12 12.04.2022 A simple query showed that both UNRATED and NOT RATED were used in the dataset. I have replaced NOT RATED label with UNRATED label. 34 rows were modified.
+UPDATE DATA
+SET "CONTENT_RATING" = 'UNRATED'
+WHERE "CONTENT_RATING" = 'NOT RATED'
+
+16:16 12.04.2022 I spotted an error in my previous queries.
+SELECT COUNT("MOVIE_TITLE")
+FROM(
+SELECT "MOVIE_TITLE", COUNT("MOVIE_TITLE") AS APPEARANCES
+FROM DATA
+GROUP BY "MOVIE_TITLE"
+HAVING COUNT("MOVIE_TITLE") > 1)
+
+CORRECTED QUERY
+
+SELECT COUNT("MOVIE_TITLE")
+FROM(
+SELECT "MOVIE_TITLE", COUNT("ID") AS APPEARANCES
+FROM DATA
+GROUP BY "MOVIE_TITLE"
+HAVING COUNT("MOVIE_TITLE") > 1)
+
+The mistake comes from the use of COUNT. If the field used with count is NULL then COUNT does not count that recording.
+Fortunately, there were no rows with MOVIE_TITLE NULL after the previous queries.
+
+16:33 12.04.2022 Movie with ID 2814 had title 'AMEN.'. I changed the name to 'AMEN'
+update data set "MOVIE_TITLE" = 'AMEN' where "ID" = 2814
+
+16:40 12.04.2022 Further queries revealed a number of movies with unusual characters in their names.
+SELECT * FROM DATA
+WHERE LENGTH(REPLACE(TRANSLATE("MOVIE_TITLE", '|\";[]{+=_()*^%$#@}<>', ' '), ' ')) < LENGTH(REPLACE("MOVIE_TITLE", ' '))
+
+The movie names are: 
+
+BIRDMAN OR (THE UNEXPECTED VIRTUE OF IGNORANCE), CALL + RESPONSE, CRY_WOLF, ROMEO + JULIET, CA$H, [REC] 2
+
+I will remove or replace the special characters even though they might not be typos. I have no way of verifing the names and replacing or removing the special characters 
+makes the name easier to read.
+
+BIRDMAN OR (THE UNEXPECTED VIRTUE OF IGNORANCE) will be changed to BIRDMAN for a shorter title. No other movies with MOVIE_TITLE BIRDMAN exists.
+
+17:08 12.04.2022 SQL query modifies all MOVIE_TITLE values. The dataset cannot be used anymore.
+
+17:09 12.04.2022 The DATA table has been dropped.
+
+17:11 12.04.2022 The dataset has been uploaded again into Apex platform. Now I will perform the previous queries in the same order.
+
+17:16 12.04.2022 The previous queries were performed again
+
+17:25 12.04.2022 I ran the command for creating a savepoint called saveA
+I am not sure if it worked as intended
+
+begin
+  savepoint saveA;
+end;
+
+17:31 12.04.2022 I created a copy of DATA table called SAVEA
+create table SAVEA as select * from DATA;
+
+
+
+TO DO: 		CHECK NAME SPELLING FOR DIRECTORS, ACTORS AND MOVIE TITLES (DONE)
+		REMOVE DUPLICATE ENTRIES (WILL BE DONE IN PYTHON)
+		RENAME THE FOLLOWING MOVIES BIRDMAN OR (THE UNEXPECTED VIRTUE OF IGNORANCE), CALL + RESPONSE, CRY_WOLF, ROMEO + JULIET, CA$H, [REC] 2
+		INTO SOMETHING MORE READABLE (DONE)
+
+
+
+
+
+
+
+
+
+
+17:01 13.04.2022 I checked for movies without director. Found nothing
+select * from data
+where "DIRECTOR_NAME" IS NULL
+
+17:02 13.04.2022 I checked for movies without GROSS. Found nothing
+select * from data
+where "GROSS" IS NULL
+
+17:04 13.04.2022 I found 3 movies without any actors. No action will be taken.
+select * from data
+where "ACTOR_1_NAME" IS NULL
+
+17:05 13.04.2022 I found 5 movies without the second actor. No action will be taken
+select * from data
+where "ACTOR_2_NAME" IS NULL
+
+17:06 13.04.2022 I found 8 movies without the third actor. No action will be taken
+select * from data
+where "ACTOR_3_NAME" IS NULL
+
+17:10 13.04.2022 I found  movies where the third actor's name did not contain a whitespace
+select unique "ACTOR_3_NAME" from data WHERE LENGTH("ACTOR_3_NAME") = LENGTH(REPLACE("ACTOR_3_NAME", ' '))
+
+On a closer look these name are errors(COMMON, RZA, TABO, etc).
+
+17:16 13.04.2022 I made a list with all names that did not contain whitespaces in column ACTOR_3_NAME
+TABU, WILL.I.AM, DRAKE, AALIYAH, FLEA, LEON, RAIN, RZA, ICE-T, CHESTER, BJÖRK, DMX, REKHA, COMMON, T.I., XZIBIT, ANN-MARGRET, PRABHAS, MAKO, CHARICE, SLASH, DENDEN
+select unique "ACTOR_3_NAME" from data WHERE LENGTH("ACTOR_3_NAME") = LENGTH(REPLACE("ACTOR_3_NAME", ' '))
+
+
+17:28 13.04.2022 About 127 movies have ACTOR_3_NAME containing one of the names above
+
+SELECT A.*
+FROM
+  data A, (select unique "ACTOR_3_NAME" from data WHERE LENGTH("ACTOR_3_NAME") = LENGTH(REPLACE("ACTOR_3_NAME", ' '))) B
+WHERE
+  REGEXP_LIKE( A."ACTOR_3_NAME", B."ACTOR_3_NAME" )
+
+17:31 13.04.2022 4 movies have COMMON as the third actor.
+
+SELECT A.*
+FROM
+  data A, (select unique "ACTOR_3_NAME" from data WHERE LENGTH("ACTOR_3_NAME") = LENGTH(REPLACE("ACTOR_3_NAME", ' '))) B
+WHERE
+  REGEXP_LIKE( A."ACTOR_3_NAME", B."ACTOR_3_NAME" )
+
+17:34 13.04.2022 Those values where replaced with NULL
+update data
+set "ACTOR_3_NAME" = NULL
+WHERE "ACTOR_3_NAME" = 'COMMON'
+
+17:36 13.04.2022 A single row had ACTOR_3_NAME TABU replaced with NULL
+update data
+set "ACTOR_3_NAME" = NULL
+WHERE "ACTOR_3_NAME" = 'TABU'
+
+17:39 13.04.2022 Too many actors have the name WILLIAM. The record containing WILL.I.AM in ACTOR_3_NAME will change to conatining NULL in that column
+SELECT *
+FROM
+  data
+WHERE
+  REGEXP_LIKE( "ACTOR_3_NAME", 'WILLIAM' )
+
+17:41 13.04.2022
+update data
+set "ACTOR_3_NAME" = NULL
+WHERE "ACTOR_3_NAME" = 'WILL.I.AM'
+
+17:43 13.04.2022 A search for DRAKE revealed a movie with the third actor JOYFUL DRAKE. I will consider DRAKE as a mispel of JOYFUL DRAKE and will replace DRAKE accordingly
+SELECT * FROM  data
+WHERE REGEXP_LIKE( "ACTOR_3_NAME", 'DRAKE' )
+
+17:46 13.04.2022
+update data
+set "ACTOR_3_NAME" = 'JOYFUL DRAKE'
+WHERE "ACTOR_3_NAME" = 'DRAKE'
+
+17:47 13.04.2022 No other actor has the name AALIYAH. This name will be replaced with NULL
+SELECT *
+FROM
+  data
+WHERE
+  REGEXP_LIKE( "ACTOR_3_NAME", 'AALIYAH' )
+
+update data
+set "ACTOR_3_NAME" = NULL
+WHERE "ACTOR_3_NAME" = 'AALIYAH'
+
+17:49 13.04.2022 The same situation for FLEA as well
+update data
+set "ACTOR_3_NAME" = NULL
+WHERE "ACTOR_3_NAME" = 'FLEA'
+
+17:51 13.04.2022 Too many names containing LEON were found. The name LEON will be replaced with NULL
+update data
+set "ACTOR_3_NAME" = NULL
+WHERE "ACTOR_3_NAME" = 'LEON'
+
+17:53 13.04.2022 The same situation with RAIN.
+update data
+set "ACTOR_3_NAME" = NULL
+WHERE "ACTOR_3_NAME" = 'RAIN'
+
+18:02 13.04.2022 All other names will be ignored. They might be real actor and even if they are not, they do not play in enough movies to put the dataset integrity at risk
+
+18:08 13.04.2022 There were under 60 movies that had strange names for directors, first actor and second actor. I will not modify these recordings.
+I cannot verify the validity of the date and searching for a similar name would take too much time.
+They do not appear in enough movies to put the dataset integrity at risk.
+select Count(id) from (select * from data WHERE LENGTH("DIRECTOR_NAME") = LENGTH(REPLACE("DIRECTOR_NAME", ' ')))
+select Count(id) from (select * from data WHERE LENGTH("ACTOR_1_NAME") = LENGTH(REPLACE("ACTOR_1_NAME", ' ')))
+select Count(id) from (select * from data WHERE LENGTH("ACTOR_2_NAME") = LENGTH(REPLACE("ACTOR_2_NAME", ' ')))
+
+
+18:26 13.04.2022 Almost half of the movies do not make a profit. Something is very wrong.
+SELECT A."FLOPS"/B."TOTAL" FROM DUAL, (SELECT COUNT("ID")  AS "FLOPS" FROM (SELECT * FROM DATA WHERE "BUDGET" >= "GROSS")) A, (SELECT COUNT("ID") AS "TOTAL" FROM DATA) B
+
+18:30 13.04.2022 After loading the original data set, the procentage of flops is only 36.5%. Something is wrong. Flops are movies that cannot cover their own budget
+SELECT A."FLOPS"/B."TOTAL" FROM DUAL, (SELECT COUNT("ID")  AS "FLOPS" FROM (SELECT * FROM DATA_clean WHERE "BUDGET" >= "GROSS")) A, (SELECT COUNT("ID") AS "TOTAL" FROM DATA_clean) B
+
+18:32 13.04.2022 After deleting movies prior to 1980, the % is 38.12%
+
+18:35 13.04.2022 After deleting movies without year, the % is 39%.
+
+18:41 13.04.2022 After deleting movies without budget and/or gross, the % is 48%.
+The situation is strange, but I am not allowed to verify the date.
+
+21:27 14.04.2022 10 movies have strange director name
+select * from data WHERE LENGTH("DIRECTOR_NAME") = LENGTH(REPLACE("DIRECTOR_NAME", ' ')) ORDER BY "DIRECTOR_NAME"
+
+The names are: COSTA-GAVRAS, MCG, PITOF	and RZA
+
+21:29 14.04.2022 No movies with director COSTA GAVRAS were found.
+select * from data WHERE "DIRECTOR_NAME" = 'COSTA GAVRAS'
+
+I will asume that COSTA-GAVRAS is a misspel of COSTA GRAVAS and change the rows accordingly.
+
+update data
+set "DIRECTOR_NAME" = 'COSTA GAVRAS'
+WHERE "DIRECTOR_NAME" = 'COSTA-GAVRAS'
+
+21:40 14.04.2022 No director name containing PITOF were found. PITOF will be replaced with NULL
+SELECT *
+FROM
+  data
+WHERE
+  REGEXP_LIKE( "DIRECTOR_NAME", 'PITOF' )
+
+update data
+set "DIRECTOR_NAME" = NULL
+WHERE "DIRECTOR_NAME" = 'PITOF'
+
+
+21:43 14.04.2022 Too many director names containing MCG where found. MCG will be replaced with NULL
+SELECT UNIQUE "DIRECTOR_NAME"
+FROM
+  data
+WHERE
+  REGEXP_LIKE( "DIRECTOR_NAME", 'MCG' )
+
+update data
+set "DIRECTOR_NAME" = NULL
+WHERE "DIRECTOR_NAME" = 'MCG'
+
+21:46 14.04.2022 Only one movie has the director RZA. No actions will be taken. This recording is most probably wrong, RZA is an actor in another movie.
+Usually, directors are not actors too.
+SELECT * FROM DATA WHERE "DIRECTOR_NAME" = 'RZA'
+
+21:59 14.04.2022 No strange characters were found in GENRES column
+SELECT * FROM DATA
+WHERE LENGTH(REPLACE(TRANSLATE("GENRES", '\";[]{+=_()*^%$#@}<>', ' '), ' ')) < LENGTH(REPLACE("GENRES", ' '))
+
+22:07 14.04.2022 About 20% of the movies are blockbusters. A blockbuster is any movie with a revenue larger than budget*2.5
+SELECT B."BLOCKBUSTERS" / A."TOTAL" FROM DUAL, (SELECT COUNT("ID") AS "TOTAL" FROM DATA) A, 
+(SELECT COUNT("ID") AS "BLOCKBUSTERS" FROM DATA WHERE "GROSS" >= 2.5*"BUDGET") B
+
+07:57 15.04.2022 About 98% of the movies have a budget lower than or equal to 200000000. The movies with budgets higher than that will be deleted.
+The company can use at most 200 million dollars for the movie so movies with a higher budget are not of interest for us.
+SELECT B."BLOCKBUSTERS" / A."TOTAL" FROM DUAL, (SELECT COUNT("ID") AS "TOTAL" FROM DATA) A, 
+(SELECT COUNT("ID") AS "BLOCKBUSTERS" FROM DATA WHERE "BUDGET" <= 200000000) B
+
+
+08:03 15.04.2022 Movies deleted.
+delete FROM DATA WHERE "BUDGET" > 200000000
+
+14:04 16.04.2022 Duplicate movies have dropped to 89
+
+SELECT COUNT("MOVIE_TITLE")
+FROM(
+SELECT "MOVIE_TITLE", COUNT("MOVIE_TITLE") AS APPEARANCES
+FROM DATA
+GROUP BY "MOVIE_TITLE"
+HAVING COUNT("MOVIE_TITLE") > 1)
+
+14:08 16.04.2022 Create new table with the names of all duplicate movies
+CREATE TABLE DUPLICATES AS (
+SELECT "MOVIE_TITLE" as "MOVIE"
+FROM DATA
+GROUP BY "MOVIE_TITLE"
+HAVING COUNT("MOVIE_TITLE") > 1)
+
+14:42 16.04.2022 mOVIE TITLE MODIFIED
+
+UPDATE DATA
+SET "MOVIE_TITLE" = 'CALL & RESPONSE'
+WHERE "ID" = 4905
+
+UPDATE DATA
+SET "MOVIE_TITLE" = 'BIRDMAN'
+WHERE "ID" = 2415
+
+UPDATE DATA
+SET "MOVIE_TITLE" = 'CRY WOLF'
+WHERE "ID" = 4542
+
+UPDATE DATA
+SET "MOVIE_TITLE" = 'REC 2'
+WHERE "ID" = 3667
+
+UPDATE DATA
+SET "MOVIE_TITLE" = 'ROMEO & JULIET'
+WHERE "ID" = 2758
+
+UPDATE DATA
+SET "MOVIE_TITLE" = 'CASH'
+WHERE "ID" = 3534
+
+15:19 16.04.2022 NEW TABLE CREATED.COLUMN MOVIE_FACEBOOK_LIKES WAS REMOVED. THE CLUMN ORDER WAS CHANGED AND A FEW COLUMNS WERE RENAMED.
+
+CREATE TABLE NEW_DATA AS (
+    SELECT "DIRECTOR_NAME" AS DIRECTOR, "MOVIE_TITLE" AS MOVIE,"TITLE_YEAR" AS YEAR, "ACTOR_1_NAME" AS ACTOR_1, "ACTOR_2_NAME" AS ACTOR_2, "ACTOR_3_NAME" AS ACTOR_3, "GENRES", "PLOT_KEYWORDS", 
+    "BUDGET", "GROSS" AS BOX_OFFICE, "CONTENT_RATING", "DURATION" AS LENGTH FROM DATA
+)
+
+22:14 17.04.2022 bACKUP TABLE WAS CREATED
+
+  CREATE TABLE BACKUP AS (SELECT * FROM NEW_DATA)
+
+22:15 17.04.2022 mOVIE DUPLICATES WERE REMOVED
+
+DELETE
+FROM
+  NEW_DATA
+WHERE
+  rowid NOT IN
+  (
+    SELECT
+      MIN(rowid)
+    FROM
+      NEW_DATA
+    GROUP BY
+      "MOVIE"
+    
+  )
+
+22:30 17.04.2022 6 movies where found to be under 60 minutes
+SELECT * FROM NEW_DATA
+WHERE "LENGTH" < 60
+
+
+22:33 17.04.2022 2 MOVIES WHERE FOUND TO HAVE GEORGE w. BUSH AS AN ACTOR. nO ACTIONS WILL BE TAKEN. I CANNOT USE EXTERNAL DATA SO I UNABLE TO VERIFY THAT HE 
+WAS NOT AN ACTOR IN THOSE MOVIES
+
+SELECT * FROM NEW_DATA
+WHERE "DIRECTOR" = 'GEORGE W. BUSH' OR "ACTOR_1" = 'GEORGE W. BUSH' OR "ACTOR_2" = 'GEORGE W. BUSH' OR "ACTOR_3" = 'GEORGE W. BUSH' 
+
+
+13:33 18.04.2022 I HAVE CREATED A NEW TABLE CONTAINING ALL BLOCKBUSTERS. A BLOCKBUSTER IS ANY MOVIE THAT HAD A PROFIT LARGER THAN 100 MILLION.
+
+CREATE TABLE BLOCKBUSTERS AS  (SELECT * FROM NEW_DATA
+WHERE "BOX_OFFICE" - "BUDGET">= 100000000)
+
+14:42 18.04.2022 I made some wordclouds in python on GENRES and PLOT KEYWORDS. I found out BASED ON is a very common sequence of words.
+It has no importance, so it will be eliminated
+
+UPDATE BLOCKBUSTERS
+SET "PLOT_KEYWORDS" = REPLACE("PLOT_KEYWORDS", 'BASED ON ', '')
+
+UPDATE NEW_DATA
+SET "PLOT_KEYWORDS" = REPLACE("PLOT_KEYWORDS", 'BASED ON ', '')
+
+
+16:54 18.04.2022 THE COMPANY HAS A LOW PROBABILITY TO RELEASE A BLOCKBUSTER(ABOUT 5%) (bLOCKBUSTER = PROFIT > 100 MILLION)
+SELECT B.M / M.M FROM
+(
+SELECT COUNT("MOVIE") AS M
+FROM NEW_DATA) M,
+(
+SELECT COUNT("MOVIE") AS M
+FROM BLOCKBUSTERS) B
